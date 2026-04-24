@@ -11,7 +11,11 @@ import {
   unmarkModuleComplete,
 } from "@/lib/progress";
 import { printModule2Section3Slides } from "@/lib/printModule2Slides";
-import { SettingsHelp } from "@/components/SettingsHelp";
+import {
+  SectionIntroRowWithHelp,
+  SectionStepHeaderWithHelp,
+  SectionTitleWithHelp,
+} from "@/components/SectionHelpBulb";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -53,6 +57,20 @@ export default function ModulePage() {
   const [suspiciousChoice, setSuspiciousChoice] = useState<string | null>(null);
   const [suspiciousSubmitted, setSuspiciousSubmitted] = useState(false);
   const [markedComplete, setMarkedComplete] = useState(false);
+  const [openSectionHelpId, setOpenSectionHelpId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOpenSectionHelpId(null);
+  }, [slug]);
+
+  useEffect(() => {
+    if (!openSectionHelpId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenSectionHelpId(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [openSectionHelpId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -225,7 +243,7 @@ export default function ModulePage() {
     );
 
   /** 2FA “turn on” task, App Permissions “take back a key” — intro, Path line, numbered steps, video. */
-  function taskPathWithVideo(section: ModuleSection) {
+  function taskPathWithVideo(section: ModuleSection, sectionHelpId: string) {
     const pathBlock = section.blocks.find(
       (block, idx): block is ContentBlock =>
         idx > 0 && block.type === "text" && block.text.startsWith("Path:")
@@ -243,7 +261,14 @@ export default function ModulePage() {
     return (
       <div className={grid}>
         <div className="space-y-4">
-          <h2 className="font-bold text-[#000080] text-[32px] leading-tight">{section.title}</h2>
+          <SectionTitleWithHelp
+            helpId={sectionHelpId}
+            title={section.title}
+            sectionLabel={section.title}
+            openHelpId={openSectionHelpId}
+            setOpenHelpId={setOpenSectionHelpId}
+            headingClassName="mb-0 font-bold text-[#000080] text-[32px] leading-tight"
+          />
           <p className="text-[28px] font-bold leading-[1.6] text-black">
             {section.blocks[0]?.type === "text" ? section.blocks[0].text : ""}
           </p>
@@ -271,7 +296,7 @@ export default function ModulePage() {
     );
   }
 
-  const renderWideSplitSection = (section: ModuleSection) => {
+  const renderWideSplitSection = (section: ModuleSection, sectionHelpId: string) => {
     const textBlocks = section.blocks.filter((block): block is ContentBlock => block.type === "text");
     const mediaBlocks = section.blocks.filter((block) => block.type === "media");
     const useNumberedSteps =
@@ -305,7 +330,14 @@ export default function ModulePage() {
     if (mediaBlocks.length === 0) {
       return (
         <div className="space-y-4">
-          <h2 className="font-bold text-[#000080] text-[32px] leading-tight">{section.title}</h2>
+          <SectionTitleWithHelp
+            helpId={sectionHelpId}
+            title={section.title}
+            sectionLabel={section.title}
+            openHelpId={openSectionHelpId}
+            setOpenHelpId={setOpenSectionHelpId}
+            headingClassName="mb-0 font-bold text-[#000080] text-[32px] leading-tight"
+          />
           {bodyContent}
         </div>
       );
@@ -314,7 +346,14 @@ export default function ModulePage() {
     return (
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1.2fr)_420px] xl:items-start">
         <div className="space-y-4">
-          <h2 className="font-bold text-[#000080] text-[32px] leading-tight">{section.title}</h2>
+          <SectionTitleWithHelp
+            helpId={sectionHelpId}
+            title={section.title}
+            sectionLabel={section.title}
+            openHelpId={openSectionHelpId}
+            setOpenHelpId={setOpenSectionHelpId}
+            headingClassName="mb-0 font-bold text-[#000080] text-[32px] leading-tight"
+          />
           {bodyContent}
         </div>
         <aside className="space-y-4 rounded-2xl bg-white p-4 shadow-sm">
@@ -326,7 +365,7 @@ export default function ModulePage() {
     );
   };
 
-  const renderDefenceSplitSection = (section: ModuleSection) => {
+  const renderDefenceSplitSection = (section: ModuleSection, sectionHelpId: string) => {
     const introText = section.blocks[0]?.type === "text" ? section.blocks[0].text : "";
     const pathBlocks = section.blocks.filter(
       (block, idx): block is ContentBlock => idx > 0 && block.type === "text" && block.text.startsWith("Path:")
@@ -340,9 +379,14 @@ export default function ModulePage() {
     return (
       <div className={mediaBlocks.length > 0 ? "grid gap-8 xl:grid-cols-[minmax(0,1.35fr)_460px] xl:items-start" : "space-y-4"}>
         <div className="space-y-4">
-          <h2 className="font-bold text-[#000080] text-[32px] leading-tight">
-            {section.title}
-          </h2>
+          <SectionTitleWithHelp
+            helpId={sectionHelpId}
+            title={section.title}
+            sectionLabel={section.title}
+            openHelpId={openSectionHelpId}
+            setOpenHelpId={setOpenSectionHelpId}
+            headingClassName="mb-0 font-bold text-[#000080] text-[32px] leading-tight"
+          />
           {introText && (
             <p className="text-[28px] font-bold leading-[1.6] text-black">
               {introText}
@@ -535,9 +579,14 @@ export default function ModulePage() {
               {!(isFirstLineOfDefence && [0, 2, 3, 4].includes(sectionIdx)) &&
                 !isTwoFactorAuth &&
                 !isAppPermissions && (
-                <h2 className={`mb-6 font-bold text-[#000080] ${showWideLayout ? "text-[32px] leading-tight" : "text-xl"}`}>
-                  {section.title}
-                </h2>
+                <SectionTitleWithHelp
+                  helpId={`${slug}-s${sectionIdx}`}
+                  title={section.title}
+                  sectionLabel={section.title}
+                  openHelpId={openSectionHelpId}
+                  setOpenHelpId={setOpenSectionHelpId}
+                  headingClassName={`mb-0 font-bold text-[#000080] ${showWideLayout ? "text-[32px] leading-tight" : "text-xl"}`}
+                />
               )}
               <div className="space-y-6">
                 {isFirstLineOfDefence && sectionIdx === 0 ? (
@@ -548,9 +597,14 @@ export default function ModulePage() {
                     return (
                       <div className="grid gap-6 md:gap-8 xl:grid-cols-[minmax(0,1.05fr)_minmax(280px,520px)] xl:items-start">
                         <div className="space-y-4">
-                          <h2 className="font-bold text-[#000080] text-[32px] leading-tight">
-                            {section.title}
-                          </h2>
+                          <SectionTitleWithHelp
+                            helpId={`${slug}-s${sectionIdx}`}
+                            title={section.title}
+                            sectionLabel={section.title}
+                            openHelpId={openSectionHelpId}
+                            setOpenHelpId={setOpenSectionHelpId}
+                            headingClassName="mb-0 font-bold text-[#000080] text-[32px] leading-tight"
+                          />
                           {textBlocks.map((block, blockIdx) => (
                             <p key={blockIdx} className="text-[24px] leading-[1.7] text-black">
                               {renderTextBlock(block.text)}
@@ -627,9 +681,14 @@ export default function ModulePage() {
                         }
                       >
                         <div className="space-y-4">
-                          <h2 className="font-bold text-[#000080] text-[32px] leading-tight">
-                            {section.title}
-                          </h2>
+                          <SectionTitleWithHelp
+                            helpId={`${slug}-s${sectionIdx}`}
+                            title={section.title}
+                            sectionLabel={section.title}
+                            openHelpId={openSectionHelpId}
+                            setOpenHelpId={setOpenSectionHelpId}
+                            headingClassName="mb-0 font-bold text-[#000080] text-[32px] leading-tight"
+                          />
                           <p className="text-[28px] font-bold leading-[1.6] text-black">
                             {section.blocks[0]?.type === "text" ? section.blocks[0].text : ""}
                           </p>
@@ -682,11 +741,11 @@ export default function ModulePage() {
                     );
                   })()
                 ) : isFirstLineOfDefence && [3, 4].includes(sectionIdx) ? (
-                  renderDefenceSplitSection(section)
+                  renderDefenceSplitSection(section, `${slug}-s${sectionIdx}`)
                 ) : (isTwoFactorAuth && sectionIdx === 1) || (isAppPermissions && sectionIdx === 2) ? (
-                  taskPathWithVideo(section)
+                  taskPathWithVideo(section, `${slug}-s${sectionIdx}`)
                 ) : isTwoFactorAuth || isAppPermissions ? (
-                  renderWideSplitSection(section)
+                  renderWideSplitSection(section, `${slug}-s${sectionIdx}`)
                 ) : isPasswordsLoggingIn && sectionIdx === 0 ? (
                   (() => {
                     const textBlocks = section.blocks.filter((block): block is ContentBlock => block.type === "text");
@@ -804,20 +863,38 @@ export default function ModulePage() {
       ) : (
         !isSuspicious &&
         moduleData.steps.length > 0 && (
-          <ol className="mb-8 ml-6 list-decimal space-y-4">
-            {moduleData.steps.map((step, idx) => (
-              <li key={step.id} className="text-base text-black">
-                Step {idx + 1}: {step.text}
-              </li>
-            ))}
-          </ol>
+          <div className="mb-8 space-y-6">
+            {moduleData.steps.map((step, idx) => {
+              const stepLabel = `Step ${idx + 1}`;
+              const sectionLabel = `${stepLabel}: ${step.text.length > 80 ? `${step.text.slice(0, 80)}…` : step.text}`;
+              return (
+                <section key={step.id} className="rounded-xl border-2 border-black bg-white p-6 shadow-sm">
+                  <SectionStepHeaderWithHelp
+                    helpId={`${slug}-step-${step.id}`}
+                    stepNumber={idx + 1}
+                    openHelpId={openSectionHelpId}
+                    setOpenHelpId={setOpenSectionHelpId}
+                    sectionLabel={sectionLabel}
+                  />
+                  <p className="text-base text-black">{step.text}</p>
+                </section>
+              );
+            })}
+          </div>
         )
       )}
 
       {isUpdates && (
         <>
           <div className="mb-6 rounded-xl border-2 border-black bg-white p-4">
-            <p className="mb-2 font-medium text-black">{moduleData.afterCheckQuestion}</p>
+            <SectionIntroRowWithHelp
+              helpId={`${slug}-updates-check`}
+              openHelpId={openSectionHelpId}
+              setOpenHelpId={setOpenSectionHelpId}
+              sectionLabel="Software updates check-in"
+            >
+              <p className="mb-0 font-medium text-black">{moduleData.afterCheckQuestion}</p>
+            </SectionIntroRowWithHelp>
             <div className="flex gap-3">
               <button
                 type="button"
@@ -850,7 +927,16 @@ export default function ModulePage() {
 
       {isSuspicious && (
         <div className="mb-8 space-y-6">
-          <p className="text-base text-black">Read these two messages. Which one is suspicious?</p>
+          <SectionIntroRowWithHelp
+            helpId={`${slug}-intro`}
+            openHelpId={openSectionHelpId}
+            setOpenHelpId={setOpenSectionHelpId}
+            sectionLabel="Compare the two messages"
+          >
+            <p className="text-lg font-semibold text-black sm:text-xl">
+              Read these two messages. Which one is suspicious?
+            </p>
+          </SectionIntroRowWithHelp>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border-2 border-black bg-white p-4 shadow-sm">
               <p className="mb-2 font-bold text-[#000080]">Message A</p>
@@ -956,7 +1042,6 @@ export default function ModulePage() {
           )}
         </div>
       </div>
-      <SettingsHelp />
     </div>
   );
 }
