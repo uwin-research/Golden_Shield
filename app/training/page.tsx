@@ -1,6 +1,7 @@
 "use client";
 
 import { useProgressData } from "@/hooks/useProgressData";
+import { countCompletedModules } from "@/lib/progress";
 import { MODULES } from "@/lib/modules";
 import { CheckCircle } from "lucide-react";
 import Image from "next/image";
@@ -91,6 +92,18 @@ const DASHBOARD_MODULES = [
 
 export default function TrainingPage() {
   const { progress, updatesAnswered, suspiciousAnswered } = useProgressData();
+  const visibleModules = MODULES.filter((module) =>
+    DASHBOARD_MODULES.some((dashboardModule) => dashboardModule.slug === module.slug)
+  );
+
+  const completed = countCompletedModules(
+    progress,
+    visibleModules,
+    !!updatesAnswered,
+    !!suspiciousAnswered
+  );
+  const total = DASHBOARD_MODULES.length;
+
   return (
     <div className="min-h-screen">
       {/* Hero Header - uses device-optimized artwork */}
@@ -112,6 +125,32 @@ export default function TrainingPage() {
 
       {/* Main Content */}
       <div className="mx-auto max-w-6xl px-4 py-8">
+        {/* Progress */}
+        <div className="mb-8">
+          <div className="mb-2 flex justify-between text-base font-medium text-black">
+            <span>Progress</span>
+            <span>
+              {completed} of {total} completed
+            </span>
+          </div>
+          <div
+            className="h-3 w-full overflow-hidden rounded-full bg-[#e0e0e0]"
+            role="progressbar"
+            aria-valuenow={completed}
+            aria-valuemin={0}
+            aria-valuemax={total}
+            aria-label="Training progress"
+          >
+            <div
+              className="h-full rounded-full bg-[#000080] transition-all"
+              style={{ width: `${total ? (completed / total) * 100 : 0}%` }}
+            />
+          </div>
+          {completed > 0 && (
+            <p className="mt-2 text-base text-black">You&apos;re doing great.</p>
+          )}
+        </div>
+
         {/* Module Grid */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {DASHBOARD_MODULES.map((mod) => {
