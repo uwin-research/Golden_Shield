@@ -43,8 +43,13 @@ export default function SignInPage() {
   return (
     <div className="mx-auto max-w-md px-4 py-10">
       <div className="rounded-2xl border-2 border-black bg-white p-6 shadow-md">
-        <div className="mb-6 flex items-center gap-3">
-          <Shield className="h-10 w-10 text-[#000080]" aria-hidden />
+        <div className="mb-6 flex items-start gap-3">
+          <div className="flex shrink-0 flex-col items-center gap-1">
+            <Shield className="h-10 w-10 text-[#000080]" aria-hidden />
+            <span className="max-w-[4.5rem] text-center text-[10px] font-bold uppercase leading-tight tracking-wide text-[#000080]">
+              Secure sign-in
+            </span>
+          </div>
           <h1 className="text-2xl font-bold text-[#000080]">Sign in to The Digital Village</h1>
         </div>
         <p className="mb-6 text-base text-black">

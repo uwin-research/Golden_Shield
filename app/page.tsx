@@ -38,8 +38,13 @@ export default function HomePage() {
         <ul className="space-y-4">
           {PROMISE_ITEMS.map((item, i) => (
             <li key={i} className="flex items-start gap-3 text-lg text-black">
-              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-black bg-[#000080] text-white" aria-hidden>
-                <Check className="h-4 w-4" />
+              <span className="mt-0.5 flex shrink-0 flex-col items-center gap-0.5">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-black bg-[#000080] text-white">
+                  <Check className="h-4 w-4" aria-hidden />
+                </span>
+                <span className="text-center text-[10px] font-bold uppercase leading-none tracking-wide text-[#000080]">
+                  Yes
+                </span>
               </span>
               <span>{item}</span>
             </li>

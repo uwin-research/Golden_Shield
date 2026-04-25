@@ -20,6 +20,8 @@ export interface MediaSlot {
 export interface ContentBlock {
   type: "text";
   text: string;
+  /** Optional plain-language note; shown via expandable bulb beside this paragraph */
+  contextualTip?: string;
 }
 
 export interface MediaBlock {
@@ -73,6 +75,8 @@ export const MODULES: ModuleData[] = [
           {
             type: "text",
             text: "To change your text size, go to Settings > Display > Text Size. Use the slider at the bottom to find your comfort zone.",
+            contextualTip:
+              "“Settings” is the grey gear app. Inside Display, Text Size is a slider—move it slowly until reading feels easy. You can always move it back.",
           },
           {
             type: "media",
@@ -162,13 +166,7 @@ export const MODULES: ModuleData[] = [
     title: "Your First Line of Defence",
     scenario: "Elena, an active grandmother, once left her phone at a park while chasing her grandson. She was terrified that someone could see her private photos or access her banking. In this module, we turn Elena's phone into a digital vault so she can enjoy her day with peace of mind.",
     estimatedMinutes: 20,
-    steps: [
-      { id: "1", text: "Why Screen Lock is Your Best Friend: Learn how a screen lock protects your banking apps, private messages, and personal photos." },
-      { id: "2", text: "Choosing Your Key: Compare PIN, Pattern, and Password lock types for security and convenience." },
-      { id: "3", text: "Task: Setting Up Your Passcode (iPhone): Turn on a 6-digit passcode and avoid weak codes like 123456 or your birth year." },
-      { id: "4", text: "Biometrics: The Magic Touch: Set up Face ID so your phone can recognize your face quickly and safely." },
-      { id: "5", text: "The Safety Nap (Auto-Lock): Set Auto-Lock to 30 Seconds or 1 Minute so your phone protects itself when you forget." },
-    ],
+    steps: [],
     sections: [
       {
         title: "Section 1: Why Screen Lock is Your Best Friend",

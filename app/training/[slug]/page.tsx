@@ -1,6 +1,8 @@
 "use client";
 
-import { ContentBlock, getModuleBySlug, MODULES, MediaSlot, type ModuleSection } from "@/lib/modules";
+import { TrainingModuleExplorer } from "@/components/TrainingModuleExplorer";
+import { MODULE_HEADING_LABEL } from "@/lib/moduleHeadingLabels";
+import { ContentBlock, getModuleBySlug, MediaSlot, type ModuleSection } from "@/lib/modules";
 import {
   getStoredProgress,
   getUpdatesAnswer,
@@ -9,14 +11,22 @@ import {
   setSuspiciousAnswer,
   markModuleComplete,
   unmarkModuleComplete,
+  isModuleLessonComplete,
 } from "@/lib/progress";
 import { printModule2Section3Slides } from "@/lib/printModule2Slides";
-import { SettingsHelp } from "@/components/SettingsHelp";
+import { RowWithContextTip, SectionHeadingWithContextTip } from "@/components/InlineContextualTip";
+import {
+  getSectionOverviewTip,
+  getStepOrActivityTip,
+  PATH_NOTATION_TIP,
+  sectionMentionsSettingsOrPath,
+  stripSectionNumberPrefix,
+} from "@/lib/lessonContextTips";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 const MESSAGE_A = {
   title: "Canada Post Alert",
@@ -35,15 +45,6 @@ const SUSPICIOUS_OPTIONS = [
   "Neither is suspicious",
 ] as const;
 
-/** Override `ModuleData.title` on lesson pages where the dashboard numbering differs. */
-const MODULE_PAGE_HEADING: Partial<Record<string, string>> = {
-  "getting-comfortable": "Module 1: Getting Comfortable with Your Device",
-  "first-line-of-defence": "Module 2: Your First Line of Defence",
-  "passwords-logging-in": "Module 3: Passwords & Logging in Safely",
-  "two-factor-auth": "Module 3: Two-Factor Authentication (2FA)",
-  "app-permissions": "Module 4: App Permissions & Safety",
-};
-
 export default function ModulePage() {
   const params = useParams();
   const slug = params.slug as string;
@@ -53,6 +54,20 @@ export default function ModulePage() {
   const [suspiciousChoice, setSuspiciousChoice] = useState<string | null>(null);
   const [suspiciousSubmitted, setSuspiciousSubmitted] = useState(false);
   const [markedComplete, setMarkedComplete] = useState(false);
+  const [openContextTipId, setOpenContextTipId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOpenContextTipId(null);
+  }, [slug]);
+
+  useEffect(() => {
+    if (!openContextTipId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenContextTipId(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [openContextTipId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,11 +85,12 @@ export default function ModulePage() {
       }
       const mod = getModuleBySlug(slug);
       if (mod) {
-        const complete = mod.hasInteractiveMessage
-          ? !!suspiciousAns
-          : mod.afterCheckQuestion
-            ? !!updatesAns
-            : mod.steps.every((s) => (all[slug] ?? {})[s.id]);
+        const complete = isModuleLessonComplete(
+          mod,
+          all[slug],
+          !!updatesAns,
+          !!suspiciousAns
+        );
         setMarkedComplete(complete);
       }
     }
@@ -127,7 +143,7 @@ export default function ModulePage() {
       <div className="mx-auto max-w-3xl px-4 py-8">
         <p className="text-xl">Module not found.</p>
         <Link href="/training" className="mt-4 inline-block text-[#0047ab] underline">
-          Back to Training
+          Back to modules
         </Link>
       </div>
     );
@@ -140,7 +156,6 @@ export default function ModulePage() {
   const isPasswordsLoggingIn = moduleData.slug === "passwords-logging-in";
   const isTwoFactorAuth = moduleData.slug === "two-factor-auth";
   const isAppPermissions = moduleData.slug === "app-permissions";
-  const nextModule = MODULES.find((module, index) => MODULES[index - 1]?.slug === slug) ?? null;
   const renderTextBlock = (text: string) => {
     const colonIndex = text.indexOf(":");
 
@@ -224,8 +239,70 @@ export default function ModulePage() {
       </div>
     );
 
+  const sectionHeadingTipExtras = (
+    section: ModuleSection,
+    sectionIdx: number
+  ): ReactNode => {
+    const hasPath = section.blocks.some(
+      (b): b is ContentBlock => b.type === "text" && b.text.startsWith("Path:")
+    );
+    const contextual = section.blocks.filter(
+      (b): b is ContentBlock => b.type === "text" && !!b.contextualTip
+    );
+
+    return (
+      <>
+        {hasPath ? (
+          <p className="mt-4 border-t border-black/15 pt-4 text-base leading-relaxed whitespace-pre-wrap text-black">
+            {PATH_NOTATION_TIP}
+          </p>
+        ) : null}
+        {contextual.map((b, i) => (
+          <p
+            key={i}
+            className="mt-4 border-t border-black/15 pt-4 text-base leading-relaxed whitespace-pre-wrap text-black"
+          >
+            {b.contextualTip}
+          </p>
+        ))}
+        {slug === "first-line-of-defence" && sectionIdx === 2
+          ? (() => {
+              const tipFromLesson = section.blocks.find(
+                (b): b is ContentBlock => b.type === "text" && b.text.startsWith("Tip:")
+              );
+              return tipFromLesson ? (
+                <p className="mt-4 border-t border-black/15 pt-4 text-base leading-relaxed text-black">
+                  {renderTextBlock(tipFromLesson.text)}
+                </p>
+              ) : null;
+            })()
+          : null}
+      </>
+    );
+  };
+
+  const renderSectionHeadingWithTip = (
+    sectionIdx: number,
+    section: ModuleSection,
+    title: string,
+    headingClassName: string
+  ) => (
+    <SectionHeadingWithContextTip
+      tipId={`${slug}-sec-${sectionIdx}`}
+      openTipId={openContextTipId}
+      setOpenTipId={setOpenContextTipId}
+      title={title}
+      contextLabel={stripSectionNumberPrefix(section.title)}
+      headingClassName={headingClassName}
+      showSettingsFinder={sectionMentionsSettingsOrPath(section)}
+    >
+      <p className="whitespace-pre-wrap">{getSectionOverviewTip(slug, sectionIdx, moduleData.tip, section)}</p>
+      {sectionHeadingTipExtras(section, sectionIdx)}
+    </SectionHeadingWithContextTip>
+  );
+
   /** 2FA “turn on” task, App Permissions “take back a key” — intro, Path line, numbered steps, video. */
-  function taskPathWithVideo(section: ModuleSection) {
+  function taskPathWithVideo(section: ModuleSection, sectionIdx: number) {
     const pathBlock = section.blocks.find(
       (block, idx): block is ContentBlock =>
         idx > 0 && block.type === "text" && block.text.startsWith("Path:")
@@ -243,7 +320,12 @@ export default function ModulePage() {
     return (
       <div className={grid}>
         <div className="space-y-4">
-          <h2 className="font-bold text-[#000080] text-[32px] leading-tight">{section.title}</h2>
+          {renderSectionHeadingWithTip(
+            sectionIdx,
+            section,
+            section.title,
+            "mb-0 font-bold text-[#000080] text-[32px] leading-tight"
+          )}
           <p className="text-[28px] font-bold leading-[1.6] text-black">
             {section.blocks[0]?.type === "text" ? section.blocks[0].text : ""}
           </p>
@@ -271,7 +353,7 @@ export default function ModulePage() {
     );
   }
 
-  const renderWideSplitSection = (section: ModuleSection) => {
+  const renderWideSplitSection = (section: ModuleSection, sectionIdx: number) => {
     const textBlocks = section.blocks.filter((block): block is ContentBlock => block.type === "text");
     const mediaBlocks = section.blocks.filter((block) => block.type === "media");
     const useNumberedSteps =
@@ -305,7 +387,12 @@ export default function ModulePage() {
     if (mediaBlocks.length === 0) {
       return (
         <div className="space-y-4">
-          <h2 className="font-bold text-[#000080] text-[32px] leading-tight">{section.title}</h2>
+          {renderSectionHeadingWithTip(
+            sectionIdx,
+            section,
+            section.title,
+            "mb-0 font-bold text-[#000080] text-[32px] leading-tight"
+          )}
           {bodyContent}
         </div>
       );
@@ -314,7 +401,12 @@ export default function ModulePage() {
     return (
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1.2fr)_420px] xl:items-start">
         <div className="space-y-4">
-          <h2 className="font-bold text-[#000080] text-[32px] leading-tight">{section.title}</h2>
+          {renderSectionHeadingWithTip(
+            sectionIdx,
+            section,
+            section.title,
+            "mb-0 font-bold text-[#000080] text-[32px] leading-tight"
+          )}
           {bodyContent}
         </div>
         <aside className="space-y-4 rounded-2xl bg-white p-4 shadow-sm">
@@ -326,7 +418,7 @@ export default function ModulePage() {
     );
   };
 
-  const renderDefenceSplitSection = (section: ModuleSection) => {
+  const renderDefenceSplitSection = (section: ModuleSection, sectionIdx: number) => {
     const introText = section.blocks[0]?.type === "text" ? section.blocks[0].text : "";
     const pathBlocks = section.blocks.filter(
       (block, idx): block is ContentBlock => idx > 0 && block.type === "text" && block.text.startsWith("Path:")
@@ -340,9 +432,12 @@ export default function ModulePage() {
     return (
       <div className={mediaBlocks.length > 0 ? "grid gap-8 xl:grid-cols-[minmax(0,1.35fr)_460px] xl:items-start" : "space-y-4"}>
         <div className="space-y-4">
-          <h2 className="font-bold text-[#000080] text-[32px] leading-tight">
-            {section.title}
-          </h2>
+          {renderSectionHeadingWithTip(
+            sectionIdx,
+            section,
+            section.title,
+            "mb-0 font-bold text-[#000080] text-[32px] leading-tight"
+          )}
           {introText && (
             <p className="text-[28px] font-bold leading-[1.6] text-black">
               {introText}
@@ -375,6 +470,7 @@ export default function ModulePage() {
       </div>
     );
   };
+
   const showWideLayout =
     isGettingComfortable || isFirstLineOfDefence || isPasswordsLoggingIn || isTwoFactorAuth || isAppPermissions;
   const useLargeSectionText =
@@ -387,11 +483,11 @@ export default function ModulePage() {
         href="/training"
         className="mb-6 inline-flex items-center gap-2 text-base font-medium text-black hover:text-[#000080] focus:outline-none focus:ring-2 focus:ring-[#000080] rounded"
       >
-        <ArrowLeft className="h-5 w-5" /> Back to Training
+        <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden /> Back to modules
       </Link>
 
       <h1 className={`mb-2 font-bold text-[#000080] ${showWideLayout ? "text-[32px] leading-tight" : "text-3xl"}`}>
-        {MODULE_PAGE_HEADING[slug] ?? moduleData.title}
+        {MODULE_HEADING_LABEL[slug] ?? moduleData.title}
       </h1>
       {moduleData.scenario && (
         <p className={`mb-6 rounded-lg border-2 border-black bg-white p-4 italic text-black ${showWideLayout ? "text-[24px] leading-[1.7]" : "text-base"}`}>
@@ -503,13 +599,6 @@ export default function ModulePage() {
         </section>
       )}
 
-      {moduleData.tip && (
-        <div className="mb-6 rounded-xl border-l-4 border-2 border-[#000080] bg-white p-4" role="note">
-          <p className="font-semibold text-black">Tip</p>
-          <p className="text-base text-black">{moduleData.tip}</p>
-        </div>
-      )}
-
       {moduleData.reassurance && (
         <div className="mb-6 rounded-xl border-2 border-black bg-white p-4" role="note">
           <p className="text-base text-black">{moduleData.reassurance}</p>
@@ -534,11 +623,13 @@ export default function ModulePage() {
             <section key={sectionIdx} className="rounded-xl border-2 border-black bg-white p-6 shadow-sm">
               {!(isFirstLineOfDefence && [0, 2, 3, 4].includes(sectionIdx)) &&
                 !isTwoFactorAuth &&
-                !isAppPermissions && (
-                <h2 className={`mb-6 font-bold text-[#000080] ${showWideLayout ? "text-[32px] leading-tight" : "text-xl"}`}>
-                  {section.title}
-                </h2>
-              )}
+                !isAppPermissions &&
+                renderSectionHeadingWithTip(
+                  sectionIdx,
+                  section,
+                  section.title,
+                  `mb-0 font-bold text-[#000080] ${showWideLayout ? "text-[32px] leading-tight" : "text-xl"}`
+                )}
               <div className="space-y-6">
                 {isFirstLineOfDefence && sectionIdx === 0 ? (
                   (() => {
@@ -548,9 +639,12 @@ export default function ModulePage() {
                     return (
                       <div className="grid gap-6 md:gap-8 xl:grid-cols-[minmax(0,1.05fr)_minmax(280px,520px)] xl:items-start">
                         <div className="space-y-4">
-                          <h2 className="font-bold text-[#000080] text-[32px] leading-tight">
-                            {section.title}
-                          </h2>
+                          {renderSectionHeadingWithTip(
+                            sectionIdx,
+                            section,
+                            section.title,
+                            "mb-0 font-bold text-[#000080] text-[32px] leading-tight"
+                          )}
                           {textBlocks.map((block, blockIdx) => (
                             <p key={blockIdx} className="text-[24px] leading-[1.7] text-black">
                               {renderTextBlock(block.text)}
@@ -603,9 +697,6 @@ export default function ModulePage() {
                   </>
                 ) : isFirstLineOfDefence && sectionIdx === 2 ? (
                   (() => {
-                    const tipBlock = section.blocks.find(
-                      (block, idx): block is ContentBlock => idx > 0 && block.type === "text" && block.text.startsWith("Tip:")
-                    );
                     const pathBlock = section.blocks.find(
                       (block, idx): block is ContentBlock => idx > 0 && block.type === "text" && block.text.startsWith("Path:")
                     );
@@ -627,16 +718,17 @@ export default function ModulePage() {
                         }
                       >
                         <div className="space-y-4">
-                          <h2 className="font-bold text-[#000080] text-[32px] leading-tight">
-                            {section.title}
-                          </h2>
+                          {renderSectionHeadingWithTip(
+                            sectionIdx,
+                            section,
+                            section.title,
+                            "mb-0 font-bold text-[#000080] text-[32px] leading-tight"
+                          )}
                           <p className="text-[28px] font-bold leading-[1.6] text-black">
                             {section.blocks[0]?.type === "text" ? section.blocks[0].text : ""}
                           </p>
                           {pathBlock && (
-                            <p className="text-[24px] leading-[1.7] text-black">
-                              {renderTextBlock(pathBlock.text)}
-                            </p>
+                            <p className="text-[24px] leading-[1.7] text-black">{renderTextBlock(pathBlock.text)}</p>
                           )}
                           <ol className="ml-6 list-decimal space-y-3">
                             {stepBlocks.map((block, blockIdx) => (
@@ -652,22 +744,6 @@ export default function ModulePage() {
                           >
                             PRINT SLIDES
                           </button>
-                          {tipBlock && (
-                            <div className="relative mt-2 mr-40 ml-auto max-w-[320px] pt-8">
-                              <aside className="absolute left-[78%] -top-[5rem] z-10 w-full max-w-[240px] -translate-x-1/2 rounded-[2rem] bg-[#d0d0d0] px-5 py-3 text-[20px] font-medium leading-[1.5] text-black shadow-sm md:left-[98%] md:-top-[4.25rem]">
-                                <span className="absolute -bottom-4 left-6 h-8 w-8 rounded-full bg-[#d0d0d0]" aria-hidden />
-                                <span className="absolute -bottom-9 left-3 h-5 w-5 rounded-full bg-[#d0d0d0]" aria-hidden />
-                                {renderTextBlock(tipBlock.text)}
-                              </aside>
-                              <Image
-                                src="/module-2-passcode-thinking-v2.png"
-                                alt="Elena thinking while looking at her phone."
-                                width={420}
-                                height={263}
-                                className="h-auto w-full"
-                              />
-                            </div>
-                          )}
                         </div>
                         {mediaBlocks.length > 0 && (
                           <aside>
@@ -682,11 +758,11 @@ export default function ModulePage() {
                     );
                   })()
                 ) : isFirstLineOfDefence && [3, 4].includes(sectionIdx) ? (
-                  renderDefenceSplitSection(section)
+                  renderDefenceSplitSection(section, sectionIdx)
                 ) : (isTwoFactorAuth && sectionIdx === 1) || (isAppPermissions && sectionIdx === 2) ? (
-                  taskPathWithVideo(section)
+                  taskPathWithVideo(section, sectionIdx)
                 ) : isTwoFactorAuth || isAppPermissions ? (
-                  renderWideSplitSection(section)
+                  renderWideSplitSection(section, sectionIdx)
                 ) : isPasswordsLoggingIn && sectionIdx === 0 ? (
                   (() => {
                     const textBlocks = section.blocks.filter((block): block is ContentBlock => block.type === "text");
@@ -789,7 +865,12 @@ export default function ModulePage() {
                 ) : (
                   section.blocks.map((block, blockIdx) =>
                     block.type === "text" ? (
-                      <p key={blockIdx} className={`${useLargeSectionText ? "text-[24px] leading-[1.7]" : "text-base leading-relaxed"} text-black`}>
+                      <p
+                        key={blockIdx}
+                        className={
+                          useLargeSectionText ? "text-[24px] leading-[1.7] text-black" : "text-base leading-relaxed text-black"
+                        }
+                      >
                         {renderTextBlock(block.text)}
                       </p>
                     ) : (
@@ -804,13 +885,41 @@ export default function ModulePage() {
       ) : (
         !isSuspicious &&
         moduleData.steps.length > 0 && (
-          <ol className="mb-8 ml-6 list-decimal space-y-4">
-            {moduleData.steps.map((step, idx) => (
-              <li key={step.id} className="text-base text-black">
-                Step {idx + 1}: {step.text}
-              </li>
-            ))}
-          </ol>
+          <div className="mb-8">
+            <RowWithContextTip
+              tipId={`${slug}-steps-help`}
+              openTipId={openContextTipId}
+              setOpenTipId={setOpenContextTipId}
+              contextLabel="Help for all steps in this lesson"
+              showSettingsFinder={slug === "software-updates"}
+              panelBody={
+                <div className="space-y-4 text-base leading-relaxed text-black">
+                  {moduleData.steps.map((step, idx) => (
+                    <div key={step.id}>
+                      <p className="font-semibold text-[#000080]">Step {idx + 1}</p>
+                      <p className="whitespace-pre-wrap">{getStepOrActivityTip(slug, idx)}</p>
+                    </div>
+                  ))}
+                  {slug === "software-updates" && moduleData.afterCheckQuestion ? (
+                    <div className="border-t border-black/20 pt-4">
+                      <p className="font-semibold text-[#000080]">Check-in</p>
+                      <p className="mb-2">{moduleData.afterCheckQuestion}</p>
+                      <p className="whitespace-pre-wrap">{getStepOrActivityTip(slug, 4)}</p>
+                    </div>
+                  ) : null}
+                </div>
+              }
+            >
+              <p className="text-lg font-semibold text-[#000080]">Help for this lesson&apos;s steps</p>
+            </RowWithContextTip>
+            <ol className="mt-4 ml-6 list-decimal space-y-4 text-black">
+              {moduleData.steps.map((step, idx) => (
+                <li key={step.id} className="text-base">
+                  <span className="font-semibold">Step {idx + 1}:</span> {step.text}
+                </li>
+              ))}
+            </ol>
+          </div>
         )
       )}
 
@@ -850,7 +959,22 @@ export default function ModulePage() {
 
       {isSuspicious && (
         <div className="mb-8 space-y-6">
-          <p className="text-base text-black">Read these two messages. Which one is suspicious?</p>
+          <RowWithContextTip
+            tipId={`${slug}-scam-lesson-help`}
+            openTipId={openContextTipId}
+            setOpenTipId={setOpenContextTipId}
+            contextLabel="Help for this scam-spotting lesson"
+            panelBody={
+              <div className="space-y-4 text-base leading-relaxed text-black">
+                <p className="whitespace-pre-wrap">{getStepOrActivityTip(slug, 0)}</p>
+                <p className="whitespace-pre-wrap border-t border-black/15 pt-4">{getStepOrActivityTip(slug, 2)}</p>
+              </div>
+            }
+          >
+            <p className="text-base text-black sm:text-lg">
+              Read these two messages. Which one is suspicious?
+            </p>
+          </RowWithContextTip>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border-2 border-black bg-white p-4 shadow-sm">
               <p className="mb-2 font-bold text-[#000080]">Message A</p>
@@ -915,48 +1039,39 @@ export default function ModulePage() {
         <p className="text-base text-black">Take your time.</p>
       </div>
 
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={() => handleMarkComplete(!markedComplete)}
-          className={`inline-flex items-center gap-2 rounded-xl px-6 py-4 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#000080] focus:ring-offset-2 ${
-            markedComplete
-              ? "bg-[#e8e8e8] text-black hover:bg-[#d0d0d0]"
-              : "bg-green-600 text-white hover:bg-green-700"
-          }`}
+      <div className="mb-6 flex flex-wrap items-start gap-3">
+        <Link
+          href="/training"
+          className="rounded-lg bg-[#FFD700] px-5 py-3 font-medium text-black no-underline hover:bg-[#FFC107] focus:outline-none focus:ring-2 focus:ring-[#000080]"
+          style={{ textDecoration: "none" }}
         >
-          <CheckCircle className="h-6 w-6" aria-hidden />
-          {markedComplete ? "Mark as incomplete" : "Mark as complete"}
-        </button>
-        {markedComplete ? (
-          <p className="text-base text-black">Your progress has been saved. Click again to unmark.</p>
-        ) : (
-          <p className="text-sm text-black">Click when you&apos;re done to track your progress.</p>
-        )}
-        <div className="flex w-full flex-wrap items-center gap-3">
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/training"
-              className="rounded-lg bg-[#FFD700] px-5 py-3 font-medium text-black no-underline hover:bg-[#FFC107] focus:outline-none focus:ring-2 focus:ring-[#000080]"
-              style={{ textDecoration: "none" }}
-            >
-              Back to Training
-            </Link>
-          </div>
-          {markedComplete && nextModule && (
-            <div className="ml-auto">
-              <Link
-                href={`/training/${nextModule.slug}`}
-                className="inline-flex rounded-xl bg-[#FFD700] px-6 py-4 text-lg font-semibold text-black no-underline hover:bg-[#FFC107] focus:outline-none focus:ring-2 focus:ring-[#000080] focus:ring-offset-2"
-                style={{ textDecoration: "none" }}
-              >
-                Next Lesson
-              </Link>
-            </div>
+          Back to modules
+        </Link>
+        <div className="ml-auto flex min-w-0 max-w-full flex-col items-end gap-2">
+          <button
+            type="button"
+            aria-pressed={markedComplete}
+            onClick={() => handleMarkComplete(!markedComplete)}
+            className={`inline-flex items-center gap-2 rounded-xl px-6 py-4 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#000080] focus:ring-offset-2 ${
+              markedComplete
+                ? "bg-green-600 text-white hover:bg-green-700"
+                : "bg-[#e8e8e8] text-black hover:bg-[#d0d0d0]"
+            }`}
+          >
+            <span>{markedComplete ? "Completed" : "Mark as complete"}</span>
+            <CheckCircle className="h-6 w-6 shrink-0" aria-hidden />
+          </button>
+          {markedComplete ? (
+            <p className="max-w-[min(100%,20rem)] text-right text-base text-black">Your progress has been saved.</p>
+          ) : (
+            <p className="max-w-[min(100%,20rem)] text-right text-sm text-black">
+              Click when you&apos;re done to track your progress.
+            </p>
           )}
         </div>
       </div>
-      <SettingsHelp />
+
+      <TrainingModuleExplorer currentSlug={slug} progressRefreshKey={markedComplete} />
     </div>
   );
 }

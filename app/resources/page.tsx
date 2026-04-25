@@ -3,6 +3,7 @@ import { Shield, MessageSquare, Link2, Users } from "lucide-react";
 const CARDS = [
   {
     icon: Shield,
+    iconCaption: "Shield: safety",
     title: "Quick Safety Rules",
     items: [
       "Use a screen lock (PIN or biometric).",
@@ -14,6 +15,7 @@ const CARDS = [
   },
   {
     icon: MessageSquare,
+    iconCaption: "Message bubble",
     title: "How to verify a message safely",
     items: [
       "Don't reply or click links in the message.",
@@ -24,6 +26,7 @@ const CARDS = [
   },
   {
     icon: Link2,
+    iconCaption: "Web link",
     title: "What to do if you think you clicked a suspicious link",
     items: [
       "Don't enter any more information.",
@@ -34,6 +37,7 @@ const CARDS = [
   },
   {
     icon: Users,
+    iconCaption: "People / support",
     title: "Who to ask for help",
     items: [
       "A trusted family member or friend.",
@@ -61,9 +65,14 @@ export default function ResourcesPage() {
               className="rounded-2xl border border-2 border-black bg-white p-6 shadow-sm"
             >
               <div className="mb-4 flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e8e8e8] text-[#000080]">
-                  <Icon className="h-5 w-5" />
-                </span>
+                <div className="flex shrink-0 flex-col items-center gap-1">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e8e8e8] text-[#000080]">
+                    <Icon className="h-5 w-5" aria-hidden />
+                  </span>
+                  <span className="max-w-[5rem] text-center text-[10px] font-semibold leading-tight text-black">
+                    {card.iconCaption}
+                  </span>
+                </div>
                 <h2 className="text-xl font-bold text-[#000080]">{card.title}</h2>
               </div>
               <ul className="list-inside list-disc space-y-2 text-base text-black">

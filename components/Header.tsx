@@ -66,31 +66,34 @@ export function Header() {
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
-            className="flex items-center rounded-lg px-3 py-2 font-semibold hover:bg-[#e8e8e8] focus:outline-none focus:ring-2 focus:ring-[#000080] focus:ring-offset-2"
+            className="flex items-center gap-2 rounded-lg px-3 py-2 font-semibold hover:bg-[#e8e8e8] focus:outline-none focus:ring-2 focus:ring-[#000080] focus:ring-offset-2"
             onClick={() => setMenuOpen(!menuOpen)}
             aria-expanded={menuOpen}
             aria-controls="main-nav"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
           >
-            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {menuOpen ? <X className="h-5 w-5 shrink-0" aria-hidden /> : <Menu className="h-5 w-5 shrink-0" aria-hidden />}
+            <span>{menuOpen ? "Close" : "Menu"}</span>
           </button>
           {user ? (
             <button
               type="button"
               onClick={() => signOut()}
-              className="rounded-lg bg-[#FFD700] px-3 py-2 text-black hover:bg-[#FFC107] focus:outline-none focus:ring-2 focus:ring-[#000080] focus:ring-offset-2"
+              className="flex items-center gap-2 rounded-lg bg-[#FFD700] px-3 py-2 text-black hover:bg-[#FFC107] focus:outline-none focus:ring-2 focus:ring-[#000080] focus:ring-offset-2"
               aria-label="Sign out"
             >
-              <LogOut className="h-5 w-5" aria-hidden />
+              <LogOut className="h-5 w-5 shrink-0" aria-hidden />
+              <span className="text-sm font-semibold">Sign out</span>
             </button>
           ) : (
             <Link
               href="/signin"
-              className="rounded-lg bg-[#FFD700] px-3 py-2 text-black no-underline hover:bg-[#FFC107] focus:outline-none focus:ring-2 focus:ring-[#000080] focus:ring-offset-2"
+              className="flex items-center gap-2 rounded-lg bg-[#FFD700] px-3 py-2 text-black no-underline hover:bg-[#FFC107] focus:outline-none focus:ring-2 focus:ring-[#000080] focus:ring-offset-2"
               style={{ textDecoration: "none" }}
               aria-label="Sign in"
             >
-              <LogIn className="h-5 w-5" aria-hidden />
+              <LogIn className="h-5 w-5 shrink-0" aria-hidden />
+              <span className="text-sm font-semibold">Sign in</span>
             </Link>
           )}
         </div>

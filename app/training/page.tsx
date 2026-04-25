@@ -1,108 +1,15 @@
 "use client";
 
 import { useProgressData } from "@/hooks/useProgressData";
-import { countCompletedModules } from "@/lib/progress";
+import { isModuleLessonComplete } from "@/lib/progress";
 import { MODULES } from "@/lib/modules";
+import { TRAINING_NAV_MODULES } from "@/lib/trainingNavModules";
 import { CheckCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-const DASHBOARD_MODULES = [
-  {
-    slug: "getting-comfortable",
-    title: "Module 1: Getting Comfortable with Your Device",
-    storyTitle: "Making the Screen Work for You",
-    description:
-      "Font size, gestures, and what to do when you make a mistake. Learn to use your device without fear.",
-    buttonLabel: "Start Learning",
-    image: "/arthur-accessibility.png",
-    icon: null,
-  },
-  {
-    slug: "first-line-of-defence",
-    title: "Module 2: Your First Line of Defence",
-    storyTitle: "Screen Lock & Biometrics",
-    description:
-      "Why screen lock matters, PINs vs. patterns, Face ID, and what to do if your phone is lost.",
-    buttonLabel: "Lock Your Device",
-    image: "/elena-security.png",
-    icon: null,
-  },
-  {
-    slug: "two-factor-auth",
-    title: "Module 3: Two-Factor Authentication (2FA)",
-    storyTitle: "The Double Lock",
-    description:
-      "Add a second lock to your accounts. Learn what 2FA is, how to set it up, and backup codes.",
-    buttonLabel: "Add 2FA",
-    image: "/two-factor-auth.png",
-    icon: null,
-  },
-  {
-    slug: "app-permissions",
-    title: "Module 4: App Permissions & Safety",
-    storyTitle: "When to Say Yes or No",
-    description:
-      "What app permissions are, the six key permissions, and how to spot app store red flags.",
-    buttonLabel: "Check Permissions",
-    image: "/app-permissions.png",
-    icon: null,
-  },
-  {
-    slug: "software-updates",
-    title: "Module 5: Software Updates & Habits",
-    storyTitle: "The Monthly Safety Routine",
-    description:
-      "Why updates matter, how to check for them, automatic updates, and the monthly safety checklist.",
-    buttonLabel: "Start the Routine",
-    image: "/software-updates.png",
-    icon: null,
-  },
-  {
-    slug: "scams-phishing",
-    title: "Module 6: Recognising Scams & Phishing",
-    storyTitle: "The PAUSE Method",
-    description:
-      "Common scams, the PAUSE method, and what to do if you spot a suspicious message.",
-    buttonLabel: "Spot the Scam",
-    image: "/scams-phishing.png",
-    icon: null,
-  },
-  {
-    slug: "public-wifi-browsing",
-    title: "Module 7: Public Wi-Fi & Safe Browsing",
-    storyTitle: "Browse Safely Away from Home",
-    description:
-      "Public Wi-Fi risks, recognising secure websites, and what a VPN is.",
-    buttonLabel: "Browse Safely",
-    image: "/public-wifi-browsing.png",
-    icon: null,
-  },
-  {
-    slug: "caches-cookies-clutter",
-    title: "Module 8: Caches, Cookies & Digital Clutter",
-    storyTitle: "Clear the Clutter",
-    description:
-      "What a cache is, clearing cookies and history, and private browsing mode.",
-    buttonLabel: "Clear Clutter",
-    image: "/caches-cookies-clutter.png",
-    icon: null,
-  },
-];
-
 export default function TrainingPage() {
   const { progress, updatesAnswered, suspiciousAnswered } = useProgressData();
-  const visibleModules = MODULES.filter((module) =>
-    DASHBOARD_MODULES.some((dashboardModule) => dashboardModule.slug === module.slug)
-  );
-
-  const completed = countCompletedModules(
-    progress,
-    visibleModules,
-    !!updatesAnswered,
-    !!suspiciousAnswered
-  );
-  const total = DASHBOARD_MODULES.length;
 
   return (
     <div className="min-h-screen">
@@ -125,44 +32,17 @@ export default function TrainingPage() {
 
       {/* Main Content */}
       <div className="mx-auto max-w-6xl px-4 py-8">
-        {/* Progress */}
-        <div className="mb-8">
-          <div className="mb-2 flex justify-between text-base font-medium text-black">
-            <span>Progress</span>
-            <span>
-              {completed} of {total} completed
-            </span>
-          </div>
-          <div
-            className="h-3 w-full overflow-hidden rounded-full bg-[#e0e0e0]"
-            role="progressbar"
-            aria-valuenow={completed}
-            aria-valuemin={0}
-            aria-valuemax={total}
-            aria-label="Training progress"
-          >
-            <div
-              className="h-full rounded-full bg-[#000080] transition-all"
-              style={{ width: `${total ? (completed / total) * 100 : 0}%` }}
-            />
-          </div>
-          {completed > 0 && (
-            <p className="mt-2 text-base text-black">You&apos;re doing great.</p>
-          )}
-        </div>
-
         {/* Module Grid */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {DASHBOARD_MODULES.map((mod) => {
+          {TRAINING_NAV_MODULES.map((mod) => {
             const moduleData = MODULES.find((m) => m.slug === mod.slug);
             const isComplete = moduleData
-              ? moduleData.hasInteractiveMessage
-                ? !!suspiciousAnswered
-                : moduleData.afterCheckQuestion
-                  ? !!updatesAnswered
-                  : moduleData.steps.length > 0 &&
-                    !!progress[mod.slug] &&
-                    moduleData.steps.every((s) => progress[mod.slug][s.id])
+              ? isModuleLessonComplete(
+                  moduleData,
+                  progress[mod.slug],
+                  !!updatesAnswered,
+                  !!suspiciousAnswered
+                )
               : false;
 
             return (
@@ -190,16 +70,14 @@ export default function TrainingPage() {
                 <div className="flex flex-1 flex-col p-5">
                   {isComplete && (
                     <div className="mb-3 inline-flex w-fit items-center gap-2 rounded-full bg-green-700 px-3 py-2 text-sm font-semibold text-white">
-                      <CheckCircle className="h-4 w-4" aria-hidden />
                       <span>Completed</span>
+                      <CheckCircle className="h-4 w-4 shrink-0" aria-hidden />
                     </div>
                   )}
                   <h2 className="mb-1 text-lg font-bold text-[#000080]">
                     {mod.storyTitle}
                   </h2>
-                  <p className="mb-2 text-sm font-medium text-black">
-                    {mod.title}
-                  </p>
+                  <p className="mb-2 text-sm font-bold text-black">{mod.title}</p>
                   <p className="mb-4 flex-1 text-base text-black">
                     {mod.description}
                   </p>
