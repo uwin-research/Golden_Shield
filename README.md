@@ -27,7 +27,6 @@ npm run lint    # ESLint
 - **Sign in**: lightweight email sign-in that gates training content
 - **Training dashboard**: eight guided modules with progress tracking and completion badges
 - **Module pages**: large-type lessons with scenarios, steps, images, videos, and tailored layouts (for example, Module 2 split columns for text and media; printable slide flow where configured)
-- **Glossary**: plain-language definitions for security terms
 - **Help**: getting-started guidance and troubleshooting tips
 - **Resources**: quick-reference safety reminders
 
@@ -75,6 +74,5 @@ Lesson titles, copy, and media paths are defined in `lib/modules.ts`. Slugs on `
 | `/signin` | Sign in |
 | `/training` | Training dashboard |
 | `/training/[slug]` | Module lesson pages |
-| `/glossary` | Glossary |
 | `/help` | Help |
 | `/resources` | Resources |

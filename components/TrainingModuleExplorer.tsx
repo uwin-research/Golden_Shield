@@ -2,15 +2,43 @@
 
 import { useProgressData } from "@/hooks/useProgressData";
 import { MODULES } from "@/lib/modules";
-import { isModuleLessonComplete } from "@/lib/progress";
-import { TRAINING_NAV_MODULES } from "@/lib/trainingNavModules";
+import { isModuleLessonComplete, type ModuleProgress } from "@/lib/progress";
+import { TRAINING_NAV_MODULES, type TrainingNavModule } from "@/lib/trainingNavModules";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 type TrainingModuleExplorerProps = {
   currentSlug: string;
   progressRefreshKey?: number | string | boolean;
 };
+
+function isModuleComplete(
+  mod: TrainingNavModule,
+  progress: ModuleProgress,
+  updatesAnswered: boolean,
+  suspiciousAnswered: boolean
+): boolean {
+  const moduleData = MODULES.find((m) => m.slug === mod.slug);
+  return moduleData
+    ? isModuleLessonComplete(moduleData, progress[mod.slug], updatesAnswered, suspiciousAnswered)
+    : false;
+}
+
+function pickSuggestedNext(
+  currentSlug: string,
+  progress: ModuleProgress,
+  updatesAnswered: boolean,
+  suspiciousAnswered: boolean
+): TrainingNavModule {
+  const idx = TRAINING_NAV_MODULES.findIndex((m) => m.slug === currentSlug);
+  if (idx === -1) {
+    const firstIncomplete = TRAINING_NAV_MODULES.find(
+      (m) => !isModuleComplete(m, progress, updatesAnswered, suspiciousAnswered)
+    );
+    return firstIncomplete ?? TRAINING_NAV_MODULES[0];
+  }
+  return TRAINING_NAV_MODULES[(idx + 1) % TRAINING_NAV_MODULES.length];
+}
 
 export function TrainingModuleExplorer({ currentSlug, progressRefreshKey }: TrainingModuleExplorerProps) {
   const { progress, updatesAnswered, suspiciousAnswered, reload } = useProgressData();
@@ -19,30 +47,34 @@ export function TrainingModuleExplorer({ currentSlug, progressRefreshKey }: Trai
     void reload();
   }, [currentSlug, progressRefreshKey, reload]);
 
+  const suggested = useMemo(
+    () => pickSuggestedNext(currentSlug, progress, !!updatesAnswered, !!suspiciousAnswered),
+    [currentSlug, progress, updatesAnswered, suspiciousAnswered]
+  );
+
+  const orderedMods = useMemo(
+    () => [suggested, ...TRAINING_NAV_MODULES.filter((m) => m.slug !== suggested.slug)],
+    [suggested]
+  );
+
   return (
     <nav
       className="mt-10 border-t border-black pt-8"
-      aria-labelledby="training-module-explorer-heading"
+      aria-labelledby="training-learn-next-heading"
     >
-      <h2 id="training-module-explorer-heading" className="text-lg font-semibold text-[#000080]">
-        All modules
+      <h2 id="training-learn-next-heading" className="text-lg font-semibold text-[#000080]">
+        Which module would you like to learn next?
       </h2>
       <p className="mt-1 max-w-xl text-sm text-black/75">
-        Go to any topic when you like. You can skip ahead or revisit lessons in any order.
+        Tap any row to open that lesson. One idea is highlighted below as a gentle suggestion—you can still choose any
+        module you prefer.
       </p>
 
       <ul className="mt-5 list-none divide-y divide-neutral-200 rounded-lg border border-neutral-300 bg-white p-0">
-        {TRAINING_NAV_MODULES.map((mod) => {
-          const moduleData = MODULES.find((m) => m.slug === mod.slug);
-          const isComplete = moduleData
-            ? isModuleLessonComplete(
-                moduleData,
-                progress[mod.slug],
-                !!updatesAnswered,
-                !!suspiciousAnswered
-              )
-            : false;
+        {orderedMods.map((mod) => {
+          const isComplete = isModuleComplete(mod, progress, !!updatesAnswered, !!suspiciousAnswered);
           const isHere = mod.slug === currentSlug;
+          const isSuggested = mod.slug === suggested.slug && !isHere;
           const statusLabel = isComplete ? "Done" : "Not Done";
 
           return (
@@ -61,6 +93,11 @@ export function TrainingModuleExplorer({ currentSlug, progressRefreshKey }: Trai
                     {isHere ? (
                       <span className="rounded-full bg-[#FFD700] px-2 py-0.5 text-xs font-bold text-black">
                         You are here
+                      </span>
+                    ) : null}
+                    {isSuggested ? (
+                      <span className="rounded-full bg-[#cce5ff] px-2 py-0.5 text-xs font-bold text-[#000080]">
+                        Suggested next
                       </span>
                     ) : null}
                   </p>

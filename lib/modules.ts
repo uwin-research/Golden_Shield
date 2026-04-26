@@ -204,19 +204,23 @@ export const MODULES: ModuleData[] = [
         blocks: [
           {
             type: "text",
-            text: "Different locks offer different levels of security and convenience.",
+            text: "Different locks offer different levels of security and convenience. Four common types are compared below with a house analogy.",
           },
           {
             type: "text",
-            text: "PIN: A secret 4 or 6-digit number.",
+            text: "PIN: A short sequence of numbers—like a keypad code on your front door.",
           },
           {
             type: "text",
-            text: "Pattern: Connecting dots in a specific shape.",
+            text: "Pattern: A shape you draw on a grid of dots—like a secret knock or a specific way you turn a handle.",
           },
           {
             type: "text",
-            text: "Password: A mix of letters and numbers.",
+            text: "Password: A mix of letters, numbers, and symbols—like a long, complex physical key that is hard to copy.",
+          },
+          {
+            type: "text",
+            text: "Biometrics: Using your fingerprint or face to unlock—like a high-tech lock that opens only when it sees you or feels your touch.",
           },
         ],
       },

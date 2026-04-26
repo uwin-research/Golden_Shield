@@ -31,7 +31,7 @@ export const SECTION_OVERVIEW_TIPS: Partial<Record<string, string[]>> = {
   ],
   "first-line-of-defence": [
     "Why a screen lock matters for photos, messages, and banking—and how it buys you time if your phone is out of your hands.",
-    "PIN, pattern, or password: a simple comparison so you can pick a lock style that feels secure enough but still easy for you.",
+    "PIN, pattern, password, or biometrics: a simple comparison with a house analogy so you can pick a lock style that feels right for you.",
     "A guided passcode task with clear steps. Work slowly; you can pause and come back. The video and slides repeat the same path if you need them.",
     "If your phone is missing, here is a calm checklist: who to call, what to change first, and how to protect accounts.",
     "Find My and similar tools help a trusted person help you—this section explains the idea without rushing you to turn everything on at once.",

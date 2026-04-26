@@ -22,6 +22,7 @@ import {
   sectionMentionsSettingsOrPath,
   stripSectionNumberPrefix,
 } from "@/lib/lessonContextTips";
+import { getSectionPlainCorpus, isTipTextRedundantWithCorpus } from "@/lib/tipTextDedup";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -113,6 +114,11 @@ export default function ModulePage() {
 
   const handlePrintSection3Slides = useCallback(() => {
     printModule2Section3Slides();
+  }, []);
+
+  /** In-module anchors: `lesson-sec-0` = first section, etc. Used by Module 2 lock-type table rows. */
+  const scrollToLessonSection = useCallback((sectionIdx: number) => {
+    document.getElementById(`lesson-sec-${sectionIdx}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
   const handleMarkComplete = useCallback(
@@ -241,7 +247,8 @@ export default function ModulePage() {
 
   const sectionHeadingTipExtras = (
     section: ModuleSection,
-    sectionIdx: number
+    sectionIdx: number,
+    sectionCorpus: string
   ): ReactNode => {
     const hasPath = section.blocks.some(
       (b): b is ContentBlock => b.type === "text" && b.text.startsWith("Path:")
@@ -249,32 +256,44 @@ export default function ModulePage() {
     const contextual = section.blocks.filter(
       (b): b is ContentBlock => b.type === "text" && !!b.contextualTip
     );
+    const showPathTip = hasPath && !isTipTextRedundantWithCorpus(PATH_NOTATION_TIP, sectionCorpus);
 
     return (
       <>
-        {hasPath ? (
+        {showPathTip ? (
           <p className="mt-4 border-t border-black/15 pt-4 text-base leading-relaxed whitespace-pre-wrap text-black">
             {PATH_NOTATION_TIP}
           </p>
         ) : null}
-        {contextual.map((b, i) => (
-          <p
-            key={i}
-            className="mt-4 border-t border-black/15 pt-4 text-base leading-relaxed whitespace-pre-wrap text-black"
-          >
-            {b.contextualTip}
-          </p>
-        ))}
+        {contextual.map((b, i) => {
+          const tip = b.contextualTip ?? "";
+          if (
+            isTipTextRedundantWithCorpus(tip, b.text) ||
+            isTipTextRedundantWithCorpus(tip, sectionCorpus)
+          ) {
+            return null;
+          }
+          return (
+            <p
+              key={i}
+              className="mt-4 border-t border-black/15 pt-4 text-base leading-relaxed whitespace-pre-wrap text-black"
+            >
+              {tip}
+            </p>
+          );
+        })}
         {slug === "first-line-of-defence" && sectionIdx === 2
           ? (() => {
               const tipFromLesson = section.blocks.find(
                 (b): b is ContentBlock => b.type === "text" && b.text.startsWith("Tip:")
               );
-              return tipFromLesson ? (
+              if (!tipFromLesson) return null;
+              if (isTipTextRedundantWithCorpus(tipFromLesson.text, sectionCorpus)) return null;
+              return (
                 <p className="mt-4 border-t border-black/15 pt-4 text-base leading-relaxed text-black">
                   {renderTextBlock(tipFromLesson.text)}
                 </p>
-              ) : null;
+              );
             })()
           : null}
       </>
@@ -286,20 +305,28 @@ export default function ModulePage() {
     section: ModuleSection,
     title: string,
     headingClassName: string
-  ) => (
-    <SectionHeadingWithContextTip
-      tipId={`${slug}-sec-${sectionIdx}`}
-      openTipId={openContextTipId}
-      setOpenTipId={setOpenContextTipId}
-      title={title}
-      contextLabel={stripSectionNumberPrefix(section.title)}
-      headingClassName={headingClassName}
-      showSettingsFinder={sectionMentionsSettingsOrPath(section)}
-    >
-      <p className="whitespace-pre-wrap">{getSectionOverviewTip(slug, sectionIdx, moduleData.tip, section)}</p>
-      {sectionHeadingTipExtras(section, sectionIdx)}
-    </SectionHeadingWithContextTip>
-  );
+  ) => {
+    const sectionCorpus =
+      getSectionPlainCorpus(section) +
+      (sectionIdx === 0 && moduleData.tip?.trim() ? `\n${moduleData.tip.trim()}` : "");
+    const overviewText = getSectionOverviewTip(slug, sectionIdx, moduleData.tip, section);
+    const showOverview = !isTipTextRedundantWithCorpus(overviewText, sectionCorpus);
+
+    return (
+      <SectionHeadingWithContextTip
+        tipId={`${slug}-sec-${sectionIdx}`}
+        openTipId={openContextTipId}
+        setOpenTipId={setOpenContextTipId}
+        title={title}
+        contextLabel={stripSectionNumberPrefix(section.title)}
+        headingClassName={headingClassName}
+        showSettingsFinder={sectionMentionsSettingsOrPath(section)}
+      >
+        {showOverview ? <p className="whitespace-pre-wrap">{overviewText}</p> : null}
+        {sectionHeadingTipExtras(section, sectionIdx, sectionCorpus)}
+      </SectionHeadingWithContextTip>
+    );
+  };
 
   /** 2FA “turn on” task, App Permissions “take back a key” — intro, Path line, numbered steps, video. */
   function taskPathWithVideo(section: ModuleSection, sectionIdx: number) {
@@ -620,7 +647,11 @@ export default function ModulePage() {
       {!isSuspicious && moduleData.sections ? (
         <div className="mb-8 space-y-10">
           {moduleData.sections.map((section, sectionIdx) => (
-            <section key={sectionIdx} className="rounded-xl border-2 border-black bg-white p-6 shadow-sm">
+            <section
+              key={sectionIdx}
+              id={`lesson-sec-${sectionIdx}`}
+              className="scroll-mt-28 rounded-xl border-2 border-black bg-white p-6 shadow-sm"
+            >
               {!(isFirstLineOfDefence && [0, 2, 3, 4].includes(sectionIdx)) &&
                 !isTwoFactorAuth &&
                 !isAppPermissions &&
@@ -664,32 +695,96 @@ export default function ModulePage() {
                 ) : isFirstLineOfDefence && sectionIdx === 1 ? (
                   <>
                     <p className="text-[24px] leading-[1.7] text-black">
-                      There are three main ways to lock your phone. Each has its own strengths.
+                      Different locks offer different levels of security and convenience. Here are four common types—each
+                      with a simple house analogy so it is easy to picture. Tap{" "}
+                      <span className="font-semibold">PIN</span>, <span className="font-semibold">Pattern</span>, or{" "}
+                      <span className="font-semibold">Password</span> to jump to the passcode setup steps (Section 3), or
+                      tap <span className="font-semibold">Biometrics</span> for the Face ID / fingerprint lesson (Section
+                      4).
                     </p>
                     <div className="overflow-x-auto rounded-xl border-2 border-black">
                       <table className="min-w-full border-collapse text-left text-[24px] text-black">
                         <thead className="bg-[#cfcfcf]">
                           <tr>
                             <th className="border-b-2 border-black px-4 py-4 font-bold">Lock Type</th>
-                            <th className="border-b-2 border-black px-4 py-4 font-bold">Definition</th>
-                            <th className="border-b-2 border-black px-4 py-4 font-bold">Security vs. Ease</th>
+                            <th className="border-b-2 border-black px-4 py-4 font-bold">What is it?</th>
+                            <th className="border-b-2 border-black px-4 py-4 font-bold">The House Analogy</th>
                           </tr>
                         </thead>
                         <tbody>
-                          <tr className="bg-white">
+                          <tr
+                            tabIndex={0}
+                            role="link"
+                            aria-label="Go to Section 3: passcode setup"
+                            className="cursor-pointer bg-white transition-colors hover:bg-[#e8eeff] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#000080]"
+                            onClick={() => scrollToLessonSection(2)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                scrollToLessonSection(2);
+                              }
+                            }}
+                          >
                             <td className="border-t-2 border-black px-4 py-4 font-semibold text-[#000080]">PIN</td>
-                            <td className="border-t-2 border-black px-4 py-4">A secret 4 or 6-digit number.</td>
-                            <td className="border-t-2 border-black px-4 py-4">High Security: Hard to guess. Medium Ease: Must be remembered.</td>
+                            <td className="border-t-2 border-black px-4 py-4">A short sequence of numbers.</td>
+                            <td className="border-t-2 border-black px-4 py-4">Like a keypad code on your front door.</td>
                           </tr>
-                          <tr className="bg-[#d9d9d9]">
+                          <tr
+                            tabIndex={0}
+                            role="link"
+                            aria-label="Go to Section 3: passcode setup"
+                            className="cursor-pointer bg-[#d9d9d9] transition-colors hover:bg-[#e8eeff] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#000080]"
+                            onClick={() => scrollToLessonSection(2)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                scrollToLessonSection(2);
+                              }
+                            }}
+                          >
                             <td className="border-t-2 border-black px-4 py-4 font-semibold text-[#000080]">Pattern</td>
-                            <td className="border-t-2 border-black px-4 py-4">Connecting dots in a specific shape.</td>
-                            <td className="border-t-2 border-black px-4 py-4">Medium Security: Finger streaks can give it away. High Ease: Very fast.</td>
+                            <td className="border-t-2 border-black px-4 py-4">A shape you draw on a grid of dots.</td>
+                            <td className="border-t-2 border-black px-4 py-4">
+                              Like a secret &quot;knock&quot; or a specific way you turn a handle.
+                            </td>
                           </tr>
-                          <tr className="bg-white">
+                          <tr
+                            tabIndex={0}
+                            role="link"
+                            aria-label="Go to Section 3: passcode setup"
+                            className="cursor-pointer bg-white transition-colors hover:bg-[#e8eeff] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#000080]"
+                            onClick={() => scrollToLessonSection(2)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                scrollToLessonSection(2);
+                              }
+                            }}
+                          >
                             <td className="border-t-2 border-black px-4 py-4 font-semibold text-[#000080]">Password</td>
-                            <td className="border-t-2 border-black px-4 py-4">A mix of letters and numbers.</td>
-                            <td className="border-t-2 border-black px-4 py-4">Very High Security: Hardest to crack. Low Ease: Hard to type on small screens.</td>
+                            <td className="border-t-2 border-black px-4 py-4">A mix of letters, numbers, and symbols.</td>
+                            <td className="border-t-2 border-black px-4 py-4">
+                              A long, complex physical key that is hard to copy.
+                            </td>
+                          </tr>
+                          <tr
+                            tabIndex={0}
+                            role="link"
+                            aria-label="Go to Section 4: biometrics setup"
+                            className="cursor-pointer bg-[#d9d9d9] transition-colors hover:bg-[#e8eeff] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#000080]"
+                            onClick={() => scrollToLessonSection(3)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                scrollToLessonSection(3);
+                              }
+                            }}
+                          >
+                            <td className="border-t-2 border-black px-4 py-4 font-semibold text-[#000080]">Biometrics</td>
+                            <td className="border-t-2 border-black px-4 py-4">Using your fingerprint or face to unlock.</td>
+                            <td className="border-t-2 border-black px-4 py-4">
+                              Like a high-tech lock that opens only when it &quot;sees&quot; you or feels your touch.
+                            </td>
                           </tr>
                         </tbody>
                       </table>

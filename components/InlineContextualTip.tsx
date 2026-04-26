@@ -143,8 +143,10 @@ export function RowWithContextTip({
           className="relative rounded-xl border-2 border-black bg-white p-4 pr-28 shadow-md sm:pr-32"
         >
           <TipCloseButton label={`Close help: ${contextLabel}`} onClose={() => setOpenTipId(null)} />
-          <div className="text-base leading-relaxed text-black">{panelBody}</div>
-          {showSettingsFinder ? <SettingsFinderHelp /> : null}
+          <div className="text-base leading-relaxed text-black">
+            {panelBody}
+            {showSettingsFinder ? <SettingsFinderHelp /> : null}
+          </div>
         </div>
       ) : null}
     </div>
